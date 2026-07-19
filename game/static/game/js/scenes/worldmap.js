@@ -1,193 +1,58 @@
-/** World Map scene — 3D map showing all kingdoms. */
+/** World Map — responsive. */
 import { HUD } from '../ui/hud.js';
+import { responsive, createPanel, createTitle, createBtn, createText } from '../ui/responsive.js';
 
 export class WorldMapScene {
     constructor(engine, game) {
-        this.engine = engine;
-        this.game = game;
-        this.scene = new BABYLON.Scene(engine);
-        this.scene.clearColor = new BABYLON.Color4(0.1, 0.15, 0.3, 1);
-        this.hud = null;
-        this.markers = [];
+        this.engine=engine;this.game=game;
+        this.scene=new BABYLON.Scene(engine);
+        this.scene.clearColor=new BABYLON.Color4(0.1,0.15,0.3,1);
+        this.hud=null;this.markers=[];
         this._setupScene();
     }
-
-    _setupScene() {
-        const scene = this.scene;
-
-        this.camera = new BABYLON.ArcRotateCamera(
-            "worldCam", -Math.PI / 2, Math.PI / 4, 80,
-            new BABYLON.Vector3(0, 0, 0), scene
-        );
-        this.camera.lowerRadiusLimit = 30;
-        this.camera.upperRadiusLimit = 200;
-        this.camera.attachControl(scene.getEngine().getRenderingCanvas(), true);
-
-        const hemi = new BABYLON.HemisphericLight("wHemi",
-            new BABYLON.Vector3(0, 1, 0), scene);
-        hemi.intensity = 0.8;
-
-        // Large world terrain
-        const ground = BABYLON.MeshBuilder.CreateGround("wGround",
-            { width: 250, height: 250 }, scene);
-        const gMat = new BABYLON.StandardMaterial("wGMat", scene);
-        gMat.diffuseColor = new BABYLON.Color3(0.15, 0.35, 0.12);
-        ground.material = gMat;
+    _setupScene(){
+        const s=this.scene;
+        this.camera=new BABYLON.ArcRotateCamera("wCam",-Math.PI/2,Math.PI/4,80,new BABYLON.Vector3(0,0,0),s);
+        this.camera.lowerRadiusLimit=30;this.camera.upperRadiusLimit=200;
+        this.camera.attachControl(s.getEngine().getRenderingCanvas(),true);
+        new BABYLON.HemisphericLight("wL",new BABYLON.Vector3(0,1,0),s).intensity=0.8;
+        const g=BABYLON.MeshBuilder.CreateGround("wG",{width:250,height:250},s);
+        const gm=new BABYLON.StandardMaterial("wGM",s);gm.diffuseColor=new BABYLON.Color3(0.15,0.35,0.12);g.material=gm;
     }
-
-    async activate() {
-                if (!this.hud) {
-            this.hud = new HUD(this.scene, this.game.player, this.game);
-        }
+    async activate(){
+        if(!this.hud){this.hud=new HUD(this.scene,this.game.player,this.game);}
         this.hud.update(this.game.player);
-
-        // Load world data
-        try {
-            const data = await this.game.api.getWorldPlayers();
-            this._showKingdoms(data.players);
-        } catch (e) {
-            console.error('Failed to load world:', e);
+        try{const d=await this.game.api.getWorldPlayers();this._showKingdoms(d.players);}catch(e){}
+    }
+    deactivate(){for(const m of this.markers)m.dispose();this.markers=[];this._disposeUI();}
+    _showKingdoms(players){
+        const s=this.scene;
+        this._createMarker(this.game.player.world_x,this.game.player.world_z,'🏰 You',new BABYLON.Color3(1,0.85,0.1),3);
+        for(const p of players){
+            const c=new BABYLON.Color3(0.6+Math.random()*0.4,0.1+Math.random()*0.3,0.1+Math.random()*0.3);
+            this._createMarker(p.world_x,p.world_z,p.username,c,1.5,p);
         }
     }
-
-    deactivate() {
-        // scene stays loaded
-        for (const m of this.markers) m.dispose();
-        this.markers = [];
+    _createMarker(x,z,label,color,size,data=null){
+        const s=this.scene;
+        const p=BABYLON.MeshBuilder.CreateCylinder("pl",{height:0.3,diameterTop:size,diameterBottom:size+0.3},s);
+        p.position=new BABYLON.Vector3(x,0.15,z);const pm=new BABYLON.StandardMaterial("pM",s);pm.diffuseColor=color;p.material=pm;this.markers.push(p);
+        if(data){p.isPickable=true;p.actionManager=new BABYLON.ActionManager(s);p.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPickTrigger,()=>this._showInfo(data)));}
     }
+    _showInfo(data){
+        this._disposeUI();
+        const r=responsive();
+        const ui=BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("wI",true,this.scene);
+        this.infoUI=ui;
+        createPanel(ui,r);createTitle(ui,`👑 ${data.username}`,"#c9a050",r);
+        createText(ui,`Rank: #${data.battle_rank}\nAtk: ${data.attack_soldiers} | Def: ${data.defense_soldiers}`,r).top="-10%";
 
-    _showKingdoms(players) {
-        const scene = this.scene;
-
-        // Show player's own kingdom
-        this._createMarker(
-            this.game.player.world_x,
-            this.game.player.world_z,
-            '🏰 You',
-            new BABYLON.Color3(1, 0.85, 0.1),
-            3
-        );
-
-        // Show other players
-        for (const p of players) {
-            const color = new BABYLON.Color3(
-                0.6 + Math.random() * 0.4,
-                0.1 + Math.random() * 0.3,
-                0.1 + Math.random() * 0.3
-            );
-            this._createMarker(p.world_x, p.world_z, p.username, color, 1.5, p);
-        }
+        const atk=createBtn(ui,"atk","⚔️ Attack",r,()=>{this._disposeUI();this.game.switchScene('battle',{targetPlayer:data});});
+        atk.background="#5a2a2a";atk.top="10%";atk.left="-22%";
+        const spy=createBtn(ui,"spy","🕵️ Spy",r,()=>{this._disposeUI();this.game.switchScene('spyhq',{targetPlayer:data});});
+        spy.background="#2a2a5a";spy.top="10%";spy.left="22%";
+        createBtn(ui,"cls","✕",r,()=>this._disposeUI()).top="-30%";
     }
-
-    _createMarker(x, z, label, color, size, playerData = null) {
-        const scene = this.scene;
-
-        // Base platform
-        const platform = BABYLON.MeshBuilder.CreateCylinder("plat", {
-            height: 0.3, diameterTop: size, diameterBottom: size + 0.3,
-        }, scene);
-        platform.position = new BABYLON.Vector3(x, 0.15, z);
-        const pMat = new BABYLON.StandardMaterial("pMat", scene);
-        pMat.diffuseColor = color;
-        platform.material = pMat;
-        this.markers.push(platform);
-
-        // Flag pole
-        const pole = BABYLON.MeshBuilder.CreateCylinder("pole", {
-            height: size * 2, diameter: 0.1,
-        }, scene);
-        pole.position = new BABYLON.Vector3(x, size, z);
-        pole.material = pMat;
-        this.markers.push(pole);
-
-        // Flag
-        const flag = BABYLON.MeshBuilder.CreatePlane("flag", {
-            width: 1, height: 0.6,
-        }, scene);
-        flag.position = new BABYLON.Vector3(x + 0.5, size * 1.8, z);
-        const fMat = new BABYLON.StandardMaterial("fMat", scene);
-        fMat.diffuseColor = color;
-        flag.material = fMat;
-        this.markers.push(flag);
-
-        // Click handler if player data available
-        if (playerData) {
-            platform.isPickable = true;
-            platform.actionManager = new BABYLON.ActionManager(scene);
-            platform.actionManager.registerAction(
-                new BABYLON.ExecuteCodeAction(
-                    BABYLON.ActionManager.OnPickTrigger,
-                    () => this._showPlayerInfo(playerData)
-                )
-            );
-        }
-    }
-
-    _showPlayerInfo(playerData) {
-        const ui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("worldInfo", true, this.scene);
-
-        const bg = new BABYLON.GUI.Rectangle();
-        bg.width = "350px";
-        bg.height = "220px";
-        bg.background = "#1a1a2eee";
-        bg.cornerRadius = 12;
-        bg.thickness = 2;
-        bg.color = "#c9a050";
-        ui.addControl(bg);
-
-        const title = new BABYLON.GUI.TextBlock();
-        title.text = `👑 ${playerData.username}`;
-        title.color = "#c9a050";
-        title.fontSize = 22;
-        title.top = "-30%";
-        ui.addControl(title);
-
-        const info = new BABYLON.GUI.TextBlock();
-        info.text = `Rank: #${playerData.battle_rank}\n` +
-            `Attack: ${playerData.attack_soldiers} | Defense: ${playerData.defense_soldiers}`;
-        info.color = "white";
-        info.fontSize = 16;
-        info.top = "-5%";
-        ui.addControl(info);
-
-        const atkBtn = BABYLON.GUI.Button.CreateSimpleButton("atk", "⚔️ Attack");
-        atkBtn.width = "140px";
-        atkBtn.height = "40px";
-        atkBtn.color = "white";
-        atkBtn.background = "#5a2a2a";
-        atkBtn.top = "15%";
-        atkBtn.left = "-20%";
-        atkBtn.onPointerUpObservable.add(() => {
-            ui.dispose();
-            this.game.switchScene('battle', { targetPlayer: playerData });
-        });
-        ui.addControl(atkBtn);
-
-        const spyBtn = BABYLON.GUI.Button.CreateSimpleButton("spy", "🕵️ Spy");
-        spyBtn.width = "140px";
-        spyBtn.height = "40px";
-        spyBtn.color = "white";
-        spyBtn.background = "#2a2a5a";
-        spyBtn.top = "15%";
-        spyBtn.left = "20%";
-        spyBtn.onPointerUpObservable.add(() => {
-            ui.dispose();
-            this.game.switchScene('spyhq', { targetPlayer: playerData });
-        });
-        ui.addControl(spyBtn);
-
-        const closeBtn = BABYLON.GUI.Button.CreateSimpleButton("cls", "✕");
-        closeBtn.width = "40px";
-        closeBtn.height = "40px";
-        closeBtn.color = "white";
-        closeBtn.background = "red";
-        closeBtn.top = "-30%";
-        closeBtn.left = "42%";
-        closeBtn.onPointerUpObservable.add(() => ui.dispose());
-        ui.addControl(closeBtn);
-    }
-
-    onPlayerUpdated(player) {
-        if (this.hud) this.hud.update(player);
-    }
+    _disposeUI(){this.infoUI?.dispose();this.infoUI=null;}
+    onPlayerUpdated(p){this.hud?.update(p);}
 }

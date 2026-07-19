@@ -1,6 +1,7 @@
-/** Battle scene — 3D combat arena. */
+/** Battle scene — 3D combat arena. Responsive. */
 import { createFormation } from '../entities/units.js';
 import { HUD } from '../ui/hud.js';
+import { responsive, createPanel, createTitle, createBtn, createText } from '../ui/responsive.js';
 
 export class BattleScene {
     constructor(engine, game) {
@@ -14,280 +15,124 @@ export class BattleScene {
 
     _setupScene() {
         const scene = this.scene;
-
-        this.camera = new BABYLON.ArcRotateCamera(
-            "battleCam", -Math.PI / 2, Math.PI / 3, 25,
-            new BABYLON.Vector3(0, 1, 0), scene
-        );
-        this.camera.lowerRadiusLimit = 10;
-        this.camera.upperRadiusLimit = 50;
+        this.camera = new BABYLON.ArcRotateCamera("bCam", -Math.PI/2, Math.PI/3, 25, new BABYLON.Vector3(0,1,0), scene);
+        this.camera.lowerRadiusLimit = 10; this.camera.upperRadiusLimit = 50;
         this.camera.attachControl(scene.getEngine().getRenderingCanvas(), true);
 
-        const hemi = new BABYLON.HemisphericLight("bHemi",
-            new BABYLON.Vector3(0, 1, 0), scene);
-        hemi.intensity = 0.5;
+        new BABYLON.HemisphericLight("bHemi", new BABYLON.Vector3(0,1,0), scene).intensity = 0.5;
+        new BABYLON.DirectionalLight("bDir", new BABYLON.Vector3(-1,-1,0), scene).intensity = 0.6;
 
-        const dir = new BABYLON.DirectionalLight("bDir",
-            new BABYLON.Vector3(-1, -1, 0), scene);
-        dir.intensity = 0.6;
-
-        // Battlefield ground
-        const ground = BABYLON.MeshBuilder.CreateGround("bGround",
-            { width: 40, height: 30 }, scene);
-        const gMat = new BABYLON.StandardMaterial("bGMat", scene);
-        gMat.diffuseColor = new BABYLON.Color3(0.2, 0.15, 0.08);
-        ground.material = gMat;
+        const g = BABYLON.MeshBuilder.CreateGround("bG", {width:40,height:30}, scene);
+        const gm = new BABYLON.StandardMaterial("bGM", scene);
+        gm.diffuseColor = new BABYLON.Color3(0.2,0.15,0.08); g.material = gm;
 
         scene.fogMode = BABYLON.Scene.FOGMODE_LINEAR;
-        scene.fogColor = new BABYLON.Color3(0.12, 0.08, 0.04);
-        scene.fogStart = 25;
-        scene.fogEnd = 45;
+        scene.fogColor = new BABYLON.Color3(0.12,0.08,0.04);
+        scene.fogStart = 25; scene.fogEnd = 45;
     }
 
     async activate({ targetPlayer } = {}) {
-                if (!this.hud) {
-            this.hud = new HUD(this.scene, this.game.player, this.game);
-            this._buildTargetPanel();
-        }
+        this.scene.setActive?.();
+        if (!this.hud) { this.hud = new HUD(this.scene, this.game.player, this.game); this._buildPanel(); }
         this.hud.update(this.game.player);
-
-        if (targetPlayer) {
-            await this._runBattle(targetPlayer);
-        }
+        if (targetPlayer) await this._runBattle(targetPlayer);
     }
 
-    deactivate() {
-        // scene stays loaded
-        this._clearBattlefield();
-    }
+    deactivate() { this._clearBattlefield(); this._disposeUI(); }
 
-    _buildTargetPanel() {
-        // Create a fullscreen UI for target selection
-        const ui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("battleUI", true, this.scene);
+    _buildPanel() {
+        this._disposeUI();
+        const r = responsive();
+        this._r = r;
+        const ui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("bUI", true, this.scene);
+        this.battleUI = ui;
 
-        const bg = new BABYLON.GUI.Rectangle();
-        bg.width = "500px";
-        bg.height = "400px";
-        bg.background = "#1a1a2ecc";
-        bg.cornerRadius = 12;
-        bg.thickness = 2;
-        bg.color = "#c9a050";
-        ui.addControl(bg);
-
-        const title = new BABYLON.GUI.TextBlock();
-        title.text = "⚔️ Battle Arena";
-        title.color = "#c9a050";
-        title.fontSize = 24;
-        title.top = "-30%";
-        ui.addControl(title);
+        createPanel(ui, r);
+        createTitle(ui, "⚔️ Battle Arena", "#c9a050", r);
 
         this.targetInput = new BABYLON.GUI.InputText();
-        this.targetInput.width = "300px";
-        this.targetInput.height = "40px";
-        this.targetInput.placeholderText = "Search player name...";
-        this.targetInput.color = "white";
-        this.targetInput.background = "#2a2a4a";
-        this.targetInput.top = "-10%";
+        this.targetInput.width = r.btnW; this.targetInput.height = r.btnH;
+        this.targetInput.placeholderText = "Search player...";
+        this.targetInput.color = "white"; this.targetInput.background = "#2a2a4a";
+        this.targetInput.top = "-5%"; this.targetInput.fontSize = r.bodyFS;
         ui.addControl(this.targetInput);
 
-        const searchBtn = BABYLON.GUI.Button.CreateSimpleButton("searchBtn", "🔍 Search");
-        searchBtn.width = "200px";
-        searchBtn.height = "40px";
-        searchBtn.color = "white";
-        searchBtn.background = "#3a5a3a";
-        searchBtn.top = "0%";
-        searchBtn.onPointerUpObservable.add(() => this._searchTarget());
-        ui.addControl(searchBtn);
+        createBtn(ui, "search", "🔍 Search", r, () => this._searchTarget());
+        this.targetResult = createText(ui, "", r);
+        this.targetResult.top = "15%"; this.targetResult.color = "#aaa";
 
-        this.targetResult = new BABYLON.GUI.TextBlock();
-        this.targetResult.text = "";
-        this.targetResult.color = "#aaa";
-        this.targetResult.fontSize = 14;
-        this.targetResult.top = "12%";
-        ui.addControl(this.targetResult);
+        const back = createBtn(ui, "back", "🏰 Back to Kingdom", r, () => this.game.switchScene('kingdom'));
+        back.background = "#5a3a3a"; back.top = "30%";
 
-        const backBtn = BABYLON.GUI.Button.CreateSimpleButton("backBtn", "🏰 Back to Kingdom");
-        backBtn.width = "200px";
-        backBtn.height = "40px";
-        backBtn.color = "white";
-        backBtn.background = "#5a3a3a";
-        backBtn.top = "30%";
-        backBtn.onPointerUpObservable.add(() => this.game.switchScene('kingdom'));
-        ui.addControl(backBtn);
-
-        this.battleUI = ui;
+        window.addEventListener('resize', this._resizeHandler = () => { if (this.battleUI) this._buildPanel(); });
     }
 
     async _searchTarget() {
-        const query = this.targetInput.text.trim();
-        if (!query) return;
-
+        const q = this.targetInput.text.trim();
+        if (!q) return;
         try {
             const data = await this.game.api.getWorldPlayers();
-            const match = data.players.find(p =>
-                p.username.toLowerCase().includes(query.toLowerCase())
-            );
-            if (match) {
-                this.targetResult.text = `Found: ${match.username} (Rank #${match.battle_rank})`;
-                this.selectedTarget = match;
-                // Auto-attack
-                await this._runBattle(match);
-            } else {
-                this.targetResult.text = "No player found.";
-            }
-        } catch (e) {
-            this.targetResult.text = "Search failed.";
-            console.error(e);
-        }
+            const match = data.players.find(p => p.username.toLowerCase().includes(q.toLowerCase()));
+            if (match) { this.targetResult.text = `Found: ${match.username} (#${match.battle_rank})`; await this._runBattle(match); }
+            else this.targetResult.text = "Not found.";
+        } catch(e) { this.targetResult.text = "Search failed."; }
     }
 
     async _runBattle(target) {
         try {
             const data = await this.game.api.attack(target.id);
-            if (data.error) {
-                alert(data.error);
-                return;
-            }
+            if (data.error) { alert(data.error); return; }
             await this._animateBattle(data, target);
-        } catch (e) {
-            alert(e.message);
-        }
+        } catch(e) { alert(e.message); }
     }
 
     async _animateBattle(result, target) {
-        const scene = this.scene;
-        this._clearBattlefield();
-
-        // Spawn attacker units (left)
-        const atkColor = new BABYLON.Color3(0.9, 0.15, 0.1);
-        const atkCount = Math.min(this.game.player.attack_soldiers, 30);
-        this.atkUnits = createFormation(atkCount, atkColor,
-            new BABYLON.Vector3(-10, 0, 0), 1.0, scene);
-
-        // Spawn defender units (right) — approximate count
-        const defColor = new BABYLON.Color3(0.1, 0.3, 0.9);
-        const defCount = Math.min(
-            (target.attack_soldiers || 0) + (target.defense_soldiers || 0), 30
-        );
-        this.defUnits = createFormation(defCount, defColor,
-            new BABYLON.Vector3(10, 0, 0), 1.0, scene);
-
-        // Animate charge
-        await this._animateCharge();
-        await this._animateClash(result);
+        const scene = this.scene; this._clearBattlefield();
+        const atkC = new BABYLON.Color3(0.9,0.15,0.1);
+        this.atkUnits = createFormation(Math.min(this.game.player.attack_soldiers,30), atkC, new BABYLON.Vector3(-10,0,0), 1, scene);
+        const defC = new BABYLON.Color3(0.1,0.3,0.9);
+        this.defUnits = createFormation(Math.min((target.attack_soldiers||0)+(target.defense_soldiers||0),30), defC, new BABYLON.Vector3(10,0,0), 1, scene);
+        await this._animateCharge(); await this._animateClash(result);
         this._showResult(result, target);
     }
 
     _animateCharge() {
         return new Promise(resolve => {
-            const duration = 80; // frames
-            let frame = 0;
-            const observer = this.scene.onBeforeRenderObservable.add(() => {
-                frame++;
-                const t = Math.min(frame / duration, 1.0);
-                const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-
-                for (const u of this.atkUnits || []) {
-                    u.position.x = -10 + ease * 8;
-                }
-                for (const u of this.defUnits || []) {
-                    u.position.x = 10 - ease * 8;
-                }
-
-                if (t >= 1.0) {
-                    this.scene.onBeforeRenderObservable.remove(observer);
-                    resolve();
-                }
+            let f=0; const obs = this.scene.onBeforeRenderObservable.add(() => {
+                f++; const t=Math.min(f/80,1), e=t<0.5?2*t*t:-1+(4-2*t)*t;
+                for(const u of this.atkUnits||[]) u.position.x=-10+e*8;
+                for(const u of this.defUnits||[]) u.position.x=10-e*8;
+                if(t>=1){this.scene.onBeforeRenderObservable.remove(obs);resolve();}
             });
         });
     }
 
     _animateClash(result) {
         return new Promise(resolve => {
-            const duration = 60;
-            let frame = 0;
-
-            const atkLosses = result.result.attacker_losses.attack_soldiers || 0;
-            const defLosses = result.result.defender_losses.defense_soldiers || 0;
-            const atkLossUnits = Math.min(atkLosses, (this.atkUnits || []).length);
-            const defLossUnits = Math.min(defLosses, (this.defUnits || []).length);
-
-            const observer = this.scene.onBeforeRenderObservable.add(() => {
-                frame++;
-                const t = Math.min(frame / duration, 1.0);
-
-                // Remove casualties gradually
-                if (t > 0.3 && atkLossUnits > 0) {
-                    for (let i = 0; i < atkLossUnits && i < this.atkUnits.length; i++) {
-                        this.atkUnits[i].scaling.y = Math.max(0, 1 - (t - 0.3) / 0.7);
-                    }
-                }
-                if (t > 0.3 && defLossUnits > 0) {
-                    for (let i = 0; i < defLossUnits && i < this.defUnits.length; i++) {
-                        this.defUnits[i].scaling.y = Math.max(0, 1 - (t - 0.3) / 0.7);
-                    }
-                }
-
-                if (t >= 1.0) {
-                    this.scene.onBeforeRenderObservable.remove(observer);
-                    resolve();
-                }
+            let f=0; const al=result.result.attacker_losses.attack_soldiers||0, dl=result.result.defender_losses.defense_soldiers||0;
+            const au=Math.min(al,(this.atkUnits||[]).length), du=Math.min(dl,(this.defUnits||[]).length);
+            const obs = this.scene.onBeforeRenderObservable.add(() => {
+                f++; const t=Math.min(f/60,1);
+                if(t>0.3&&au>0) for(let i=0;i<au&&i<this.atkUnits.length;i++) this.atkUnits[i].scaling.y=Math.max(0,1-(t-0.3)/0.7);
+                if(t>0.3&&du>0) for(let i=0;i<du&&i<this.defUnits.length;i++) this.defUnits[i].scaling.y=Math.max(0,1-(t-0.3)/0.7);
+                if(t>=1){this.scene.onBeforeRenderObservable.remove(obs);resolve();}
             });
         });
     }
 
     _showResult(result, target) {
-        const outcome = result.result.outcome === 'ATK' ? 'Victory!' : 'Defeat!';
-        const color = result.result.outcome === 'ATK' ? '#4a4' : '#a44';
-
-        const ui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("resultUI", true, this.scene);
-
-        const bg = new BABYLON.GUI.Rectangle();
-        bg.width = "400px";
-        bg.height = "250px";
-        bg.background = "#1a1a2eee";
-        bg.cornerRadius = 12;
-        bg.thickness = 2;
-        bg.color = color;
-        ui.addControl(bg);
-
-        const title = new BABYLON.GUI.TextBlock();
-        title.text = outcome;
-        title.color = color;
-        title.fontSize = 36;
-        title.top = "-25%";
-        ui.addControl(title);
-
-        const info = new BABYLON.GUI.TextBlock();
-        info.text = `Gold: ${result.result.gold_stolen > 0 ? '+' : ''}${result.result.gold_stolen}\n` +
-            `vs ${target.username}`;
-        info.color = "white";
-        info.fontSize = 18;
-        info.top = "5%";
-        ui.addControl(info);
-
-        const okBtn = BABYLON.GUI.Button.CreateSimpleButton("okBtn", "🏰 Return to Kingdom");
-        okBtn.width = "200px";
-        okBtn.height = "40px";
-        okBtn.color = "white";
-        okBtn.background = "#2a2a5a";
-        okBtn.top = "25%";
-        okBtn.onPointerUpObservable.add(() => {
-            ui.dispose();
-            this.game.refreshPlayer();
-            this.game.switchScene('kingdom');
-        });
-        ui.addControl(okBtn);
+        const r = this._r || responsive();
+        const ui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("rUI", true, this.scene);
+        this.resultUI = ui;
+        const out = result.result.outcome==='ATK'?'Victory!':'Defeat!';
+        const col = result.result.outcome==='ATK'?'#4a4':'#a44';
+        createPanel(ui, r); createTitle(ui, out, col, r);
+        createText(ui, `Gold: ${result.result.gold_stolen>0?'+':''}${result.result.gold_stolen}\nvs ${target.username}`, r).top = "5%";
+        const ok = createBtn(ui, "ok", "🏰 Return to Kingdom", r, () => { this.resultUI?.dispose(); this.resultUI=null; this.game.refreshPlayer(); this.game.switchScene('kingdom'); });
+        ok.background = "#2a2a5a"; ok.top = "25%";
     }
 
-    _clearBattlefield() {
-        for (const u of (this.atkUnits || [])) u.dispose();
-        for (const u of (this.defUnits || [])) u.dispose();
-        this.atkUnits = [];
-        this.defUnits = [];
-    }
-
-    onPlayerUpdated(player) {
-        if (this.hud) this.hud.update(player);
-    }
+    _clearBattlefield() { for(const u of(this.atkUnits||[]))u.dispose(); for(const u of(this.defUnits||[]))u.dispose(); this.atkUnits=[];this.defUnits=[]; }
+    _disposeUI() { this.battleUI?.dispose(); this.battleUI=null; if(this._resizeHandler) window.removeEventListener('resize',this._resizeHandler); }
+    onPlayerUpdated(p) { this.hud?.update(p); }
 }
