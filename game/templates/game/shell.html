@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kings of Chaos 3D</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a12; }
+        #renderCanvas { display: block; width: 100%; height: 100%; outline: none; }
+        #loading {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: #c9a050; font-family: 'Segoe UI', system-ui, sans-serif;
+            font-size: 20px; z-index: 10; pointer-events: none;
+        }
+    </style>
+    {% load static %}
+</head>
+<body>
+    <div id="loading">⚔️ Loading Kingdom...</div>
+    <canvas id="renderCanvas"></canvas>
+
+    <script>
+        window.GAME_DATA = {
+            csrfToken: "{{ csrf_token }}",
+            player: {
+                id: {{ player.id }},
+                username: "{{ player.username|escapejs }}",
+                gold: {{ player.gold }},
+                banked_gold: {{ player.banked_gold }},
+                turns: {{ player.turns }},
+                max_turns: {{ player.max_turns }},
+                citizens: {{ player.citizens }},
+                attack_soldiers: {{ player.attack_soldiers }},
+                defense_soldiers: {{ player.defense_soldiers }},
+                spies: {{ player.spies }},
+                sentries: {{ player.sentries }},
+                attack_weapon: {{ player.attack_weapon }},
+                defense_weapon: {{ player.defense_weapon }},
+                spy_tools: {{ player.spy_tools }},
+                sentry_tools: {{ player.sentry_tools }},
+                battle_rank: {{ player.battle_rank }},
+                world_x: {{ player.world_x|floatformat:2 }},
+                world_z: {{ player.world_z|floatformat:2 }},
+            },
+            urls: {
+                refreshPlayer: "{% url 'api_player_refresh' %}",
+                attack: "{% url 'api_attack' %}",
+                train: "{% url 'api_train' %}",
+                buyWeapon: "{% url 'api_buy_weapon' %}",
+                spy: "{% url 'api_spy' %}",
+                bank: "{% url 'api_bank' %}",
+                recruitCitizens: "{% url 'api_recruit_citizens' %}",
+                worldPlayers: "{% url 'api_world_players' %}",
+                battleLog: "{% url 'api_battle_log' %}",
+                rankings: "{% url 'api_rankings' %}",
+                alliance: "{% url 'api_alliance' %}",
+            }
+        };
+    </script>
+    <script type="module" src="{% static 'game/js/main.js' %}?v={{ player.last_turn_regen|date:'U' }}"></script>
+</body>
+</html>

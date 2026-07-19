@@ -1,0 +1,5 @@
+Django>=6.0,<6.1
+psycopg-binary>=3.2
+pytest-django>=4.9
+django-htmx>=1.21
+dj-database-url>=2.3
