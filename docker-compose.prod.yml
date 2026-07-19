@@ -9,15 +9,14 @@ services:
       - pgdata:/var/lib/postgresql/data
 
   web:
-    image: ghcr.io/ikhlaau/koc3d-web:latest
+    image: ghcr.io/ikhlaau/kings-of-chaos-3d:latest
     ports:
       - "8080:8000"
     depends_on:
       - db
     environment:
       DATABASE_URL: postgres://koc3d:${DB_PASSWORD:-koc3d_prod}@db:5432/koc3d
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-koc3d-prod-secret-2026}
-      DJANGO_DEBUG: "false"
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-prod-secret-2026}
 
 volumes:
   pgdata:
