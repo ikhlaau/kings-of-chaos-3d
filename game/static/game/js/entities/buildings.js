@@ -4,19 +4,22 @@ const MAT_WOOD = (scene) => { const m=new BABYLON.StandardMaterial("wood",scene)
 const MAT_ROOF = (scene) => { const m=new BABYLON.StandardMaterial("roof",scene); m.diffuseColor=new BABYLON.Color3(0.45,0.15,0.08); return m; };
 
 function makePickable(meshOrNode, scene, onClick) {
-    // For TransformNode: add invisible click target
-    const node = meshOrNode;
-    const hitBox = BABYLON.MeshBuilder.CreateBox("hitbox", {width:5,height:6,depth:5}, scene);
-    hitBox.parent = node;
-    hitBox.isVisible = false;
-    hitBox.isPickable = true;
-    hitBox.actionManager = new BABYLON.ActionManager(scene);
-    hitBox.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPickTrigger, onClick));
-    hitBox.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOverTrigger, () => {
-        node.getChildMeshes().forEach(m => { m.renderOutline=true; m.outlineColor=BABYLON.Color3.Yellow(); m.outlineWidth=0.03; });
+    // Make the first big child mesh pickable as the click target
+    const children = meshOrNode.getChildMeshes ? meshOrNode.getChildMeshes() : [];
+    const target = children[0] || meshOrNode;
+    target.isPickable = true;
+    target.actionManager = new BABYLON.ActionManager(scene);
+    target.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPickTrigger, onClick));
+    // Hover on all children
+    target.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOverTrigger, () => {
+        (meshOrNode.getChildMeshes ? meshOrNode.getChildMeshes() : [meshOrNode]).forEach(m => {
+            m.renderOutline=true; m.outlineColor=BABYLON.Color3.Yellow(); m.outlineWidth=0.03;
+        });
     }));
-    hitBox.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOutTrigger, () => {
-        node.getChildMeshes().forEach(m => { m.renderOutline=false; });
+    target.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOutTrigger, () => {
+        (meshOrNode.getChildMeshes ? meshOrNode.getChildMeshes() : [meshOrNode]).forEach(m => {
+            m.renderOutline=false;
+        });
     }));
 }
 
