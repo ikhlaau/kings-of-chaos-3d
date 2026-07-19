@@ -7,24 +7,17 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-koc3d_prod}
     volumes:
       - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U koc3d"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
   web:
-    build: .
+    image: ghcr.io/ikhlaau/koc3d-web:latest
     ports:
       - "8080:8000"
     depends_on:
-      db:
-        condition: service_healthy
+      - db
     environment:
       DATABASE_URL: postgres://koc3d:${DB_PASSWORD:-koc3d_prod}@db:5432/koc3d
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-koc3d-prod-secret-2026}
       DJANGO_DEBUG: "false"
-      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
 
 volumes:
   pgdata:
