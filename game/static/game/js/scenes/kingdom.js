@@ -22,6 +22,23 @@ export class KingdomScene {
         this.camera.lowerBetaLimit=0.3; this.camera.upperBetaLimit=Math.PI/2-0.1;
         this.camera.attachControl(s.getEngine().getRenderingCanvas(), true);
 
+        // Mobile tap-to-click: detect taps vs drags and do ray picking
+        let startX=0, startY=0, startTime=0;
+        const canvas = s.getEngine().getRenderingCanvas();
+        canvas.addEventListener('pointerdown', (evt) => {
+            startX=evt.clientX; startY=evt.clientY; startTime=Date.now();
+        });
+        canvas.addEventListener('pointerup', (evt) => {
+            const dx=evt.clientX-startX, dy=evt.clientY-startY;
+            const dt=Date.now()-startTime;
+            // Only fire pick on quick taps with minimal movement
+            if (dt>300 || Math.abs(dx)>10 || Math.abs(dy)>10) return;
+            const pick = s.pick(evt.offsetX, evt.offsetY);
+            if (pick && pick.pickedMesh && pick.pickedMesh.actionManager) {
+                pick.pickedMesh.actionManager.processTrigger(BABYLON.ActionManager.OnPickTrigger, BABYLON.ActionEvent.CreateNew(pick.pickedMesh, evt));
+            }
+        });
+
         // Lighting with shadows
         const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0,1,0), s);
         hemi.intensity = 0.5; hemi.diffuse = new BABYLON.Color3(0.8,0.85,1);
