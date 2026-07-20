@@ -84,11 +84,10 @@ export class KingdomScene {
     }
 
     async activate() {
-        if (!this.hud) {
+        if (!this._hudUI) {
             this._buildKingdom(this.game.player);
             this._buildHUD();
         }
-        this.hud.update(this.game.player);
     }
 
     _buildHUD() {
