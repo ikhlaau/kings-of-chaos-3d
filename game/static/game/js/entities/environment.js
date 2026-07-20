@@ -213,25 +213,25 @@ export function createSky(scene) {
     scene.clearColor = new BABYLON.Color4(0.52, 0.68, 0.92, 1);
     scene.fogMode = BABYLON.Scene.FOGMODE_LINEAR;
     scene.fogColor = new BABYLON.Color3(0.62, 0.74, 0.9);
-    scene.fogStart = 55;
-    scene.fogEnd = 110;
+    scene.fogStart = 75;
+    scene.fogEnd = 150;
 }
 
-/** Puffy drifting clouds. Returns an update fn to call per-frame. */
-export function createClouds(scene, count = 8) {
+/** Puffy drifting clouds — kept high above the camera's view cone. */
+export function createClouds(scene, count = 7) {
     const clouds = [];
     for (let i = 0; i < count; i++) {
         const root = new BABYLON.TransformNode("cloud", scene);
         const a = Math.random() * Math.PI * 2;
-        const d = 25 + Math.random() * 45;
-        root.position = new BABYLON.Vector3(Math.cos(a) * d, 20 + Math.random() * 10, Math.sin(a) * d);
+        const d = 35 + Math.random() * 40;
+        root.position = new BABYLON.Vector3(Math.cos(a) * d, 38 + Math.random() * 12, Math.sin(a) * d);
 
-        const puffN = 3 + Math.floor(Math.random() * 3);
+        const puffN = 2 + Math.floor(Math.random() * 3);
         for (let p = 0; p < puffN; p++) {
-            const puff = BABYLON.MeshBuilder.CreateSphere("puff", { diameter: 3 + Math.random() * 3, segments: 6 }, scene);
-            puff.position = new BABYLON.Vector3((p - puffN / 2) * 2.4, Math.random() * 0.8, Math.random() * 1.5);
-            puff.scaling.y = 0.55;
-            puff.material = mat(scene, [0.98, 0.98, 1.0], { alpha: 0.85 });
+            const puff = BABYLON.MeshBuilder.CreateSphere("puff", { diameter: 2.5 + Math.random() * 2.5, segments: 6 }, scene);
+            puff.position = new BABYLON.Vector3((p - puffN / 2) * 2.2, Math.random() * 0.7, Math.random() * 1.4);
+            puff.scaling.y = 0.5;
+            puff.material = mat(scene, [0.98, 0.98, 1.0], { alpha: 0.55 });
             puff.parent = root;
         }
         clouds.push(root);
@@ -241,7 +241,7 @@ export function createClouds(scene, count = 8) {
         const dt = scene.getEngine().getDeltaTime() / 1000;
         for (const c of clouds) {
             c.position.x += dt * 0.6;
-            if (c.position.x > 75) c.position.x = -75;
+            if (c.position.x > 85) c.position.x = -85;
         }
     });
     return clouds;
