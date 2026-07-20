@@ -1,5 +1,5 @@
 /** Kingdom scene — epic medieval 3D with working touch. */
-import { medievalPanel, medievalTitle, medievalBtn, medievalText, isMobile, GOLD } from '../ui/medieval.js';
+import { HUD } from '../ui/hud.js';
 import { createSky } from '../entities/environment.js';
 import { createCastle, createBarracks, createTrainingGround, createArmory, createSpyHQ } from '../entities/buildings.js';
 import { createSoldier, createCitizen } from '../entities/units.js';
@@ -84,82 +84,14 @@ export class KingdomScene {
     }
 
     async activate() {
-        if (!this._hudUI) {
+        if (!this.hud) {
             this._buildKingdom(this.game.player);
             this._buildHUD();
         }
     }
 
     _buildHUD() {
-        const s = this.scene;
-        const m = isMobile();
-        const ui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("hudUI", true, s);
-
-        // Top bar — gold-framed resource display
-        const topBar = new BABYLON.GUI.Rectangle();
-        topBar.width = m ? "95%" : "60%";
-        topBar.height = m ? "36px" : "44px";
-        topBar.background = "#1a1208cc";
-        topBar.thickness = 1; topBar.color = GOLD;
-        topBar.top = m ? "-47%" : "-46%";
-        topBar.cornerRadius = 6;
-        ui.addControl(topBar);
-
-        const fs = m ? 11 : 16;
-        this.goldText = this._stat(ui, "💰 0", GOLD, m ? "-38%" : "-26%", fs);
-        this.turnsText = this._stat(ui, "⚡ 0", "#8af", m ? "-18%" : "-14%", fs);
-        this.rankText = this._stat(ui, "🏆 #0", "#fff", m ? "2%" : "0%", fs);
-        this.armyText = this._stat(ui, "⚔️0 🛡️0", "#ddd", m ? "22%" : "14%", fs-2);
-
-        // Bottom action bar
-        const botBar = new BABYLON.GUI.Rectangle();
-        botBar.width = m ? "98%" : "80%";
-        botBar.height = m ? "42px" : "50px";
-        botBar.background = "#1a1208cc";
-        botBar.thickness = 1; botBar.color = GOLD;
-        botBar.top = m ? "45%" : "43%";
-        botBar.cornerRadius = 6;
-        ui.addControl(botBar);
-
-        const bw = m ? "44px" : "90px", bh = m ? "30px" : "38px", bfs = m ? 9 : 13;
-        const btns = [
-            ["🗺️", "World", () => this.game.switchScene('worldmap')],
-            ["⚔️", "Battle", () => this.game.switchScene('battle')],
-            ["🎯", "Train", () => this.game.switchScene('training')],
-            ["🔧", "Armory", () => this.game.switchScene('armory')],
-            ["🕵️", "Spy", () => this.game.switchScene('spyhq')],
-        ];
-        let l = m ? -42 : -36;
-        for (const [icon, label, action] of btns) {
-            const btn = BABYLON.GUI.Button.CreateSimpleButton(label, m ? icon : `${icon} ${label}`);
-            btn.width = `${bw}`; btn.height = `${bh}`;
-            btn.color = GOLD; btn.background = "#2a1a08"; btn.cornerRadius = 6;
-            btn.fontSize = bfs; btn.fontFamily = "Georgia, serif";
-            btn.left = `${l}%`; btn.thickness = 1;
-            btn.onPointerUpObservable.add(action);
-            ui.addControl(btn);
-            l += m ? 16 : 20;
-        }
-
-        // Logout button
-        const logout = BABYLON.GUI.Button.CreateSimpleButton("out", "🚪");
-        logout.width = "36px"; logout.height = "30px";
-        logout.color = "#a44"; logout.background = "#2a1a08";
-        logout.cornerRadius = 6; logout.fontSize = 11;
-        logout.left = "44%"; logout.thickness = 1;
-        logout.onPointerUpObservable.add(() => window.location.href='/logout/');
-        ui.addControl(logout);
-
-        this._hudUI = ui;
-        this._hudTexts = { gold: this.goldText, turns: this.turnsText, rank: this.rankText, army: this.armyText };
-    }
-
-    _stat(ui, text, color, left, fontSize) {
-        const t = new BABYLON.GUI.TextBlock();
-        t.text = text; t.color = color; t.fontSize = fontSize;
-        t.left = left; t.fontFamily = "Georgia, serif";
-        ui.addControl(t);
-        return t;
+        this.hud = new HUD(this.scene, this.game.player, this.game);
     }
 
     _buildKingdom(player) {
@@ -227,13 +159,7 @@ export class KingdomScene {
     }
 
     onPlayerUpdated(player) {
-        if (this._hudTexts) {
-            const m = isMobile();
-            this._hudTexts.gold.text = `💰 ${this._fmt(player.gold)}`;
-            this._hudTexts.turns.text = m ? `⚡${player.turns}` : `⚡ ${player.turns}/${player.max_turns}`;
-            this._hudTexts.rank.text = m ? `🏆#${player.battle_rank}` : `🏆 Rank #${player.battle_rank}`;
-            this._hudTexts.army.text = `⚔️${this._fmt(player.attack_soldiers)} 🛡️${this._fmt(player.defense_soldiers)}`;
-        }
+        if (this.hud) this.hud.update(player);
         this._spawnUnits(player);
     }
 
